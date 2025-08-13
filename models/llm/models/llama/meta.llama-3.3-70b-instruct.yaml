@@ -43,7 +43,7 @@ parameter_rules:
     default: 0
   - name: maxTokens
     use_template: max_tokens
-    default: 600
+    default: 4000
     max: 4000
 pricing:
   input: '0.0018'

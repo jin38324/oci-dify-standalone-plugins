@@ -25,7 +25,7 @@ parameter_rules:
     max: 1
   - name: maxTokens
     use_template: max_tokens
-    default: 1000
+    default: 4000
     max: 16000
     
 pricing:

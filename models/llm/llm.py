@@ -32,6 +32,7 @@ from .call_api import patched_call_api
 from oci.base_client import BaseClient 
 BaseClient.call_api = patched_call_api
 
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 class OCILargeLanguageModel(LargeLanguageModel):
@@ -243,9 +244,7 @@ class OCILargeLanguageModel(LargeLanguageModel):
             ) 
 
             chat_history = []
-            for idx, message in enumerate(prompt_messages, start=1):
-                print("PromptMessage:",idx,message)
-                
+            for idx, message in enumerate(prompt_messages, start=1):                
                 if idx < len(prompt_messages):
                     message = Convertor()._parse_prompt_message_to_cohere(message)
                     chat_history.append(message)
@@ -283,8 +282,8 @@ class OCILargeLanguageModel(LargeLanguageModel):
         if model_parameters.get("reasoning_effort"):
             body["chatRequest"]["reasoning_effort"] = model_parameters.get("reasoning_effort")
         body = json.dumps(body)
-        print(body)
-        #response = client.chat(chat_detail)
+        logging.debug("Request body:  "+body)
+        
         response = client.base_client.call_api(
             resource_path="/actions/chat",
             method="POST",
@@ -320,7 +319,7 @@ class OCILargeLanguageModel(LargeLanguageModel):
         """
         model_id = response["modelId"]
         vendor = model_id.split(".")[0].lower()        
-        print(response)
+        logging.debug("OCI Response:  "+response)
         chat_response = response["chatResponse"]
         assistant_prompt_message = AssistantPromptMessage(content = "")
         # Cohere response
@@ -343,10 +342,11 @@ class OCILargeLanguageModel(LargeLanguageModel):
                 assistant_prompt_message.content = choice["message"]["content"][0]["text"]
         
         prompt_tokens = response["usage"]["promptTokens"]
-        completion_tokens = response["usage"]["completionTokens"]
+        total_tokens = response["usage"]["totalTokens"]
+        completion_tokens = total_tokens - prompt_tokens
         usage = self._calc_response_usage(model, credentials, prompt_tokens, completion_tokens)
         result = LLMResult(model=model, prompt_messages=prompt_messages, message=assistant_prompt_message, usage=usage)
-        print(result)
+        logging.debug("OCI Response to Dify:  "+result)
         return result
 
     def _handle_generate_stream_response(
@@ -369,10 +369,9 @@ class OCILargeLanguageModel(LargeLanguageModel):
             vendor = model.split(".")[0].lower()
             finish_reason = None
             usage = None
-            # print(prompt_messages)
             for stream in response.data.events():
                 chunk = json.loads(stream.data)
-                print(chunk)
+                    
                 if "finishReason" not in chunk:
                     assistant_prompt_message = AssistantPromptMessage()
                     if vendor == "cohere":
@@ -382,10 +381,12 @@ class OCILargeLanguageModel(LargeLanguageModel):
                             assistant_prompt_message.tool_calls = tool_calls
                         elif chunk.get("text"):
                             assistant_prompt_message.content = chunk["text"]
+                            #logging.debug(chunk["text"])
                     else:
                         if chunk.get("message", {}).get("content", [{}])[0].get("text"):
                             text = chunk["message"]["content"][0]["text"]
                             assistant_prompt_message.content = text
+                            #logging.debug(text)
                         if chunk.get("message", {}).get("toolCalls"):
                             tool_calls = Convertor().convert_response_tool_calls(chunk["message"]["toolCalls"],vendor)
                             assistant_prompt_message.tool_calls = tool_calls
@@ -399,9 +400,12 @@ class OCILargeLanguageModel(LargeLanguageModel):
                         )
                 if "finishReason" in chunk:
                     finish_reason = chunk["finishReason"]
+                    logging.debug("Stream finishReason:  "+ str(chunk))
                 if "usage" in chunk:
+                    logging.debug("Stream usage:  "+ str(chunk))
                     prompt_tokens = chunk["usage"]["promptTokens"]
-                    completion_tokens = chunk["usage"]["completionTokens"]
+                    total_tokens = chunk["usage"]["totalTokens"]
+                    completion_tokens = total_tokens - prompt_tokens
                     usage = self._calc_response_usage(model, credentials, prompt_tokens, completion_tokens)              
                 if finish_reason and usage:
                     yield LLMResultChunk(

@@ -27,15 +27,8 @@ parameter_rules:
   - name: maxTokens
     type: int
     use_template: max_tokens
-    default: 2000
+    default: 4000
     max: 16000
-  - name: reasoning_effort
-    type: string
-    use_template: reasoning_effort
-    default: low
-    options:
-      - low
-      - high
 pricing:
   input: '0.30'
   output: '0.50'
