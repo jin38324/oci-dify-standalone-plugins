@@ -24,7 +24,6 @@ meta:
 plugins:
   models:
     - provider/oci.yaml
-privacy: PRIVACY.md
 resource:
   memory: 268435456
   permission:
