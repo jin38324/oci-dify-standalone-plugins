@@ -1,5 +1,6 @@
 import base64
 import copy
+import json
 import time
 from typing import Optional
 import numpy as np
@@ -16,22 +17,9 @@ from dify_plugin.errors.model import (
     InvokeServerUnavailableError,
 )
 from dify_plugin.interfaces.model.text_embedding_model import TextEmbeddingModel
-
-request_template = {
-    "compartmentId": "",
-    "servingMode": {"modelId": "cohere.embed-english-light-v3.0", "servingType": "ON_DEMAND"},
-    "truncate": "NONE",
-    "inputs": [""],
-}
-oci_config_template = {
-    "user": "",
-    "fingerprint": "",
-    "tenancy": "",
-    "region": "",
-    "compartment_id": "",
-    "key_content": "",
-}
-
+from .call_api import patched_call_api
+from oci.base_client import BaseClient 
+BaseClient.call_api = patched_call_api
 
 class OCITextEmbeddingModel(TextEmbeddingModel):
     """
@@ -181,8 +169,23 @@ class OCITextEmbeddingModel(TextEmbeddingModel):
             # truncate = "NONE",
             inputs=texts,
         )
-        response = client.embed_text(embed_text_details)
-        return (response.data.embeddings, self.get_num_characters(model=model, credentials=credentials, texts=texts))
+        body = client.base_client.sanitize_for_serialization(embed_text_details)
+        body = json.dumps(body)
+
+        response = client.base_client.call_api(
+            resource_path="/actions/embedText",
+            method="POST",
+            operation_name="embedText",
+            header_params={
+                "accept": "application/json, text/event-stream",
+                "content-type": "application/json"
+            },
+            body=body
+            )
+        # response = client.embed_text(embed_text_details)
+        json_response = json.loads(response.data.text)
+        embeddings = json_response["embeddings"]
+        return (embeddings, self.get_num_characters(model=model, credentials=credentials, texts=texts))
 
     def _calc_response_usage(self, model: str, credentials: dict, tokens: int) -> EmbeddingUsage:
         """
