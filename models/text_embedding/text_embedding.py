@@ -185,7 +185,10 @@ class OCITextEmbeddingModel(TextEmbeddingModel):
         # response = client.embed_text(embed_text_details)
         json_response = json.loads(response.data.text)
         embeddings = json_response["embeddings"]
-        return (embeddings, self.get_num_characters(model=model, credentials=credentials, texts=texts))
+        embedding_used_tokens = json_response["usage"]["totalTokens"]
+        #embedding_characters = len(texts)
+        return (embeddings, embedding_used_tokens)
+        #return (embeddings, self.get_num_characters(model=model, credentials=credentials, texts=texts))
 
     def _calc_response_usage(self, model: str, credentials: dict, tokens: int) -> EmbeddingUsage:
         """

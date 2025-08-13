@@ -1,4 +1,5 @@
 provider: oci
+author: oci
 label:
   en_US: OCI Generative AI Service
   zh_Hans: OCI 生成式 AI 服务
